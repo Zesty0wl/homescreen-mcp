@@ -239,6 +239,26 @@ class Session:
         self.usage = usage.load(known, days)
         return self.usage
 
+    async def usage_for_ranking(self) -> dict[str, Any]:
+        """The richest usage on hand: Screen Time on this Mac (opens, time and days per app),
+        else whatever is already loaded, else the device's own memory reports."""
+        if (self.usage or {}).get("stats"):
+            return self.usage
+        loaded = self.usage
+        mac = self.load_usage()
+        if mac.get("ok"):
+            return mac
+        if (loaded or {}).get("ok"):
+            self.usage = loaded
+            return loaded
+        try:
+            device = await self.load_device_usage()
+        except Exception:
+            device = {"ok": False}
+        if not device.get("ok"):
+            self.usage = mac  # its error says how to turn Screen Time sharing on
+        return self.usage
+
     async def load_device_usage(self) -> dict[str, Any]:
         """Usage from the device's own memory reports (no Screen Time sync needed)."""
         from . import usage

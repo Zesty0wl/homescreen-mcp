@@ -7,6 +7,7 @@ Widgets and folders keep their relative order and go first unless a sort says ot
 from __future__ import annotations
 
 import json
+import subprocess
 import urllib.parse
 import urllib.request
 from pathlib import Path
@@ -129,6 +130,29 @@ def fetch_categories(bundle_ids: list[str], cache: Path, country: str = "us") ->
     cache.parent.mkdir(parents=True, exist_ok=True)
     cache.write_text(json.dumps(known, indent=1, sort_keys=True))
     return {b: known.get(b, "") for b in bundle_ids}
+
+
+def store_country() -> str:
+    """The App Store country for this Mac's region (e.g. "gb"), "us" if it can't be read."""
+    try:
+        loc = subprocess.run(["defaults", "read", "-g", "AppleLocale"], capture_output=True, text=True,
+                             timeout=5).stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        return "us"
+    region = loc.split("@")[0].replace("-", "_").split("_")[-1].lower()
+    return region if len(region) == 2 and region.isalpha() else "us"
+
+
+def fetch_categories_local(bundle_ids: list[str], cache: Path) -> dict[str, str]:
+    """fetch_categories, then a second lookup in this Mac's own App Store country for the apps the
+    US store doesn't list (banks, transport and utility apps are often single-country)."""
+    cats = fetch_categories(bundle_ids, cache)
+    country = store_country()
+    missing = [b for b in bundle_ids if not cats.get(b)]
+    if missing and country != "us":
+        local = fetch_categories(missing, cache.with_name(f"{cache.stem}-{country}{cache.suffix}"), country)
+        cats.update({b: c for b, c in local.items() if c})
+    return cats
 
 
 def category_groups(lay: Layout, categories: dict[str, str], keep_first_page: bool = True) -> dict[str, list[str]]:

@@ -7,7 +7,7 @@ from typing import Any, Callable
 
 from mcp.server.mcpserver import Image, MCPServer
 
-from . import organize, preview, usage
+from . import focus, organize, preview, usage
 from .config import DATA, session
 from .model import Layout, LayoutError
 
@@ -212,6 +212,25 @@ async def optimize_by_usage(keep_first_page: bool = False) -> dict[str, Any]:
         return {"ok": False, "error": s.usage.get("error")}
     opens = s.usage["opens"]
     return _edit(lambda lay: usage.optimize(lay, opens, keep_first_page))
+
+
+@mcp.tool()
+async def focus_pages(pages: int = 2, group_by_category: bool = True) -> dict[str, Any]:
+    """Rebuild the Home Screen around what gets used: page 1 = the most-used apps, loose; page 2
+    (pages=2) = the next tier, in folders by App Store category (group_by_category looks the
+    categories up on Apple's public API, sending bundle ids only) or loose; every other app goes
+    to the App Library, where search still finds it. The dock and widgets stay. Ranks by days
+    used, then opens and time, from Screen Time on this Mac when it's there. This replaces page
+    1 too, so use it only when the user asks for a fresh start."""
+    s = session()
+    u = await s.usage_for_ranking()
+    if not u.get("ok"):
+        return {"ok": False, "error": u.get("error")}
+    cats = None
+    if group_by_category and pages == 2:
+        ids = [n.bundle_id for n in s.require().nodes.values() if n.kind == "app" and n.bundle_id]
+        cats = organize.fetch_categories_local(ids, DATA / "categories.json")
+    return _edit(lambda lay: focus.focus(lay, u["opens"], u.get("stats"), cats, pages))
 
 
 @mcp.tool()

@@ -755,6 +755,16 @@ async function organize(name) {
     if (!ok) return;
     return withBusy("Looking up categories…", () => op(name, { keep_first_page: keep }));
   }
+  if (name === "focus") {
+    const pages = await modal({
+      title: "Focus on the apps I use",
+      body: "Rebuilds the Home Screen from your app usage. Page 1 gets the apps you use most. A second page can hold the next tier in folders by App Store category (looked up on Apple's public App Store API; only bundle IDs are sent). Every other app goes to the App Library, where search still finds it. The dock and widgets stay. Nothing is written until you apply, and you can undo this.",
+      actions: [{ label: "Cancel", value: () => null }, { label: "One page", value: () => 1 },
+        { label: "Two pages", primary: true, value: () => 2 }],
+    });
+    if (!pages) return;
+    return withBusy("Ranking your apps…", () => op(name, { pages }));
+  }
   const label = { sort_color: "Sorting by color…", optimize_usage: "Optimizing by usage…" }[name];
   const args = ["sort_color", "sort_alpha"].includes(name) ? { keep_first_page: keep }
     : name === "optimize_usage" ? { keep_first_page: false } : {};

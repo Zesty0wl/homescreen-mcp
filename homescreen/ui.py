@@ -19,7 +19,7 @@ from starlette.responses import HTMLResponse, JSONResponse, Response
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
-from . import organize, usage
+from . import focus, organize, usage
 from . import config
 from .config import DATA, session
 from .model import Layout, LayoutError, Node, widget_apps
@@ -198,6 +198,16 @@ async def post_op(request: Request) -> Response:
                 raise LayoutError(s.usage.get("error", "no usage data"))
             opens = s.usage["opens"]
             s.edit(lambda lay: usage.optimize(lay, opens, args.get("keep_first_page", False)))
+        elif name == "focus":
+            async with _device_lock:
+                u = await s.usage_for_ranking()
+            if not u.get("ok"):
+                raise LayoutError(u.get("error", "no usage data"))
+            cats = None
+            if args.get("categories", True) and int(args.get("pages", 2)) == 2:
+                ids = [n.bundle_id for n in s.require().nodes.values() if n.kind == "app" and n.bundle_id]
+                cats = await asyncio.to_thread(organize.fetch_categories_local, ids, DATA / "categories.json")
+            s.edit(lambda lay: focus.focus(lay, u["opens"], u.get("stats"), cats, int(args.get("pages", 2))))
         elif name == "group_categories":
             lay = s.require()
             ids = [n.id for p in lay.pages for n in p if n.kind == "app"]
