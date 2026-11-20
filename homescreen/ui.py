@@ -73,7 +73,7 @@ def _usage_view(lay: Layout) -> dict[str, Any] | None:
     return {"ok": True, "days": u["days"], "source": u.get("source", "mac"), "reports": u.get("reports"),
             "background": [lay.nodes[b].name for b in u.get("background", []) if b in lay.nodes],
             "original": usage.swipes(lay.original(), opens),
-            "now": usage.swipes(lay, opens), "top": usage.top_apps(lay, opens, 12)}
+            "now": usage.swipes(lay, opens), "top": usage.top_apps(lay, opens, 12, u.get("stats"))}
 
 
 def view() -> dict[str, Any]:

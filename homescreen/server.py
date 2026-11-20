@@ -182,14 +182,15 @@ async def screen_time(days: int = 30, source: str = "device") -> dict[str, Any]:
     """Which apps get used, the top apps with where they are now, and estimated page swipes for
     the device vs the draft. source='device': the device's own memory reports (no setup; apps iOS
     keeps running for calls or in memory every day count less, listed under 'background');
-    source='mac': Screen Time synced to this Mac (Share Across Devices), last `days` days."""
+    source='mac': Screen Time synced to this Mac (Share Across Devices), last `days` days; its
+    top apps also have minutes in focus and days_used."""
     s = session()
     u = await s.load_device_usage() if source == "device" else s.load_usage(days)
     if not u.get("ok"):
         return u
     lay = s.require()
     return {"source": source, "days": u["days"], "background": u.get("background", []),
-            "top": usage.top_apps(lay, u["opens"], 40),
+            "top": usage.top_apps(lay, u["opens"], 40, u.get("stats")),
             "swipes_on_phone": usage.swipes(lay.original(), u["opens"]),
             "swipes_in_draft": usage.swipes(lay, u["opens"])}
 
